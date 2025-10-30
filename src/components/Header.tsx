@@ -5,9 +5,9 @@ interface HeaderProps {
 
 const Header = ({ className }: HeaderProps) => {
   return (
-    <>
-      <p className={clsx("text-4xl", className)}>AutoScript</p>
-    </>
+    <div className={clsx("w-full p-4 bg-blue-500 min-h-[80px]", className)}>
+      <p className="text-4xl">AutoScript</p>
+    </div>
   );
 };
 

@@ -4,7 +4,7 @@ const ScriptTableSchema = z.object({
   title_script: z.string().min(1, "error in zod: title is required"),
   text_script: z.string(),
 });
-
+// todo: check, if this can get deleted
 // create script
 export async function POST(request: Request) {
   try {
