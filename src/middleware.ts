@@ -67,10 +67,7 @@ export async function middleware(request: NextRequest) {
 
   // If no session and route is protected, redirect to home
 
-  console.log("in middleware.ts ❌❌❌ sessionData:", sessionData);
-  console.log("in middleware.ts ❌❌❌ isProtected:", isProtected);
   if (!sessionData && isProtected) {
-    console.log("in middleware.ts ❌❌❌ redirecting to home");
     const redirectUrl = new URL("/", request.url);
     redirectUrl.searchParams.set("error", "unauthorized");
     redirectUrl.searchParams.set(
