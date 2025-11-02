@@ -11,8 +11,8 @@ export default function Home() {
       <div className="flex-1 flex items-center justify-center">
         <Link
           href="/studio"
-          className="px-6 py-3 bg-white text-black rounded-lg font-semibold 
-                     hover:bg-gray-200 transition-colors cursor-pointer"
+          className="px-6 py-3 bg-gray-200 text-black rounded-lg font-semibold 
+                     hover:bg-gray-400 transition-colors cursor-pointer"
         >
           Go to Studio
         </Link>
