@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 export default function Studio() {
   const router = useRouter();
   const auth = UserAuth();
+
   if (!auth) {
     return (
       <div className="p-4 flex flex-col items-center text-red-700 bg-red-50 border border-red-200">

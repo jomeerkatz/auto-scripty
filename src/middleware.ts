@@ -65,8 +65,6 @@ export async function middleware(request: NextRequest) {
     ) => pathname.startsWith(route)
   );
 
-  // If no session and route is protected, redirect to home
-
   if (!sessionData && isProtected) {
     const redirectUrl = new URL("/", request.url);
     redirectUrl.searchParams.set("error", "unauthorized");

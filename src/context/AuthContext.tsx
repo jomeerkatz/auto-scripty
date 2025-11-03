@@ -12,15 +12,19 @@ import { supabase } from "@/utils/supabase/client";
 type AuthContextType = {
   session: Session | null;
   setSession: React.Dispatch<React.SetStateAction<Session | null>>;
-  signUpNewUser: (params: {
-    email: string;
-    password: string;
-  }) => Promise<{ success: boolean; data?: any; error?: string | null }>;
+  signUpNewUser: (params: { email: string; password: string }) => Promise<{
+    success: boolean;
+    data?: any;
+    session?: Session | null;
+    error?: string | null;
+  }>;
   signOutUser: () => Promise<{ success: boolean; error?: string | null }>;
-  signInUser: (params: {
-    email: string;
-    password: string;
-  }) => Promise<{ success: boolean; data?: any; error?: string }>;
+  signInUser: (params: { email: string; password: string }) => Promise<{
+    success: boolean;
+    data?: any;
+    session?: Session | null;
+    error?: string;
+  }>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,17 +64,28 @@ export const AuthContextProvider = ({ children }: { children: ReactNode }) => {
         return {
           success: false,
           data: undefined,
+          session: null,
           error: `Sign up failed: ${error.message}`,
         };
       }
 
-      return { success: true, data: data, error: undefined };
+      if (data.session) {
+        setSession(data.session);
+      }
+
+      return {
+        success: true,
+        data: data,
+        session: data.session,
+        error: undefined,
+      };
     } catch (err) {
       console.error("AuthContext.signUpNewUser: unexpected error:", err);
       const message = err instanceof Error ? err.message : String(err);
       return {
         success: false,
         data: undefined,
+        session: null,
         error: `Sign up failed: ${message}`,
       };
     }
@@ -112,8 +127,11 @@ export const AuthContextProvider = ({ children }: { children: ReactNode }) => {
         );
         return { success: false, error: `Sign in failed: ${error.message}` };
       }
-      console.log("AuthContext.signInUser: user signed in successfully");
-      return { success: true, data: data };
+      if (data.session) {
+        setSession(data.session);
+      }
+
+      return { success: true, data: data, session: data.session };
     } catch (err) {
       console.error("AuthContext.signInUser: unexpected error:", err);
       const message = err instanceof Error ? err.message : String(err);
