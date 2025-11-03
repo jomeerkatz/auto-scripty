@@ -22,7 +22,7 @@ export default function Studio() {
     try {
       const result = await signOutUser();
       if (result.success) {
-        router.push("/signup");
+        router.push("/");
       } else {
         alert("sign out failed");
         console.error("sign out failed:", result.error);
