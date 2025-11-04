@@ -9,16 +9,25 @@ import {
 } from "react";
 import { supabase } from "@/utils/supabase/client";
 
+/**
+ * Type definition for the authentication context.
+ * Provides session management and authentication methods to consuming components.
+ */
 type AuthContextType = {
+  /** Current user session, null if not authenticated */
   session: Session | null;
+  /** Function to manually update the session state */
   setSession: React.Dispatch<React.SetStateAction<Session | null>>;
+  /** Signs up a new user with email and password */
   signUpNewUser: (params: { email: string; password: string }) => Promise<{
     success: boolean;
     data?: any;
     session?: Session | null;
     error?: string | null;
   }>;
+  /** Signs out the current user */
   signOutUser: () => Promise<{ success: boolean; error?: string | null }>;
+  /** Signs in an existing user with email and password */
   signInUser: (params: { email: string; password: string }) => Promise<{
     success: boolean;
     data?: any;
@@ -28,23 +37,54 @@ type AuthContextType = {
   }>;
 };
 
+/**
+ * AuthContext instance for sharing authentication state across the application.
+ * Undefined when used outside of AuthContextProvider.
+ */
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * AuthContextProvider Component
+ * 
+ * Provides authentication context to the entire application.
+ * Manages user session state and provides authentication methods (sign up, sign in, sign out).
+ * 
+ * Automatically syncs session state with Supabase auth changes, including:
+ * - Initial session retrieval on mount
+ * - Real-time session updates on auth state changes (sign in, sign out, token refresh)
+ * 
+ * @param children - Child components that will have access to auth context
+ */
 export const AuthContextProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
 
-  // get session on mount and listen for changes
+  /**
+   * Initialize session on mount and set up auth state listener.
+   * The listener automatically updates session state when auth changes occur
+   * (e.g., user signs in, signs out, token refreshes, etc.).
+   */
   useEffect(() => {
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
+    // Listen for auth state changes (sign in, sign out, token refresh)
     supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
   }, []);
 
-  // sign up function
+  /**
+   * Signs up a new user with email and password.
+   * 
+   * Note: Supabase may require email confirmation depending on configuration.
+   * If email confirmation is required, the session may be null until the user confirms.
+   * 
+   * @param email - User's email address
+   * @param password - User's password
+   * @returns Promise resolving to success status, session data, and any error
+   */
   const signUpNewUser = async ({
     email,
     password,
@@ -92,7 +132,12 @@ export const AuthContextProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // sign out function
+  /**
+   * Signs out the current user.
+   * Clears the session and invalidates the auth token.
+   * 
+   * @returns Promise resolving to success status and any error
+   */
   const signOutUser = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -107,7 +152,13 @@ export const AuthContextProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // sign in function
+  /**
+   * Signs in an existing user with email and password.
+   * 
+   * @param email - User's email address
+   * @param password - User's password
+   * @returns Promise resolving to success status, session data, and any error
+   */
   const signInUser = async ({
     email,
     password,
@@ -147,6 +198,20 @@ export const AuthContextProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+/**
+ * Custom hook to access the authentication context.
+ * 
+ * @returns AuthContextType if used within AuthContextProvider, undefined otherwise
+ * @throws Error if used outside of AuthContextProvider (returns undefined)
+ * 
+ * Usage:
+ * ```tsx
+ * const auth = UserAuth();
+ * if (!auth) {
+ *   // Handle error: component not wrapped in AuthContextProvider
+ * }
+ * ```
+ */
 export const UserAuth = () => {
   return useContext(AuthContext);
 };
