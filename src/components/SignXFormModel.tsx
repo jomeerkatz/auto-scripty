@@ -11,7 +11,7 @@ const SignXFormModel = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirmationEmailSent, setConfirmationEmailSent] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isEmailNotConfirmed, setEmailNotConfirmed] = useState(false);
   const auth = UserAuth();
   const router = useRouter();
   if (!auth) {
@@ -55,14 +55,17 @@ const SignXFormModel = () => {
 
     if (enabledSignIn) {
       // sign in mode
+      console.log("sign in mode");
       try {
-        console.log("sign in user");
         const result = await signInUser({
           email: userEmail,
           password: userPassword,
         });
+
         if (result.success) {
           router.push("/studio");
+        } else if (result.isEmailNotConfirmed) {
+          setEmailNotConfirmed(true);
         } else {
           const errorMessage =
             result.error || "Sign in failed: An unknown error occurred.";
@@ -87,9 +90,6 @@ const SignXFormModel = () => {
       // user exists and session is valid - redirect to studio
       if (checkUserExistsResult.exists && checkUserExistsResult.session) {
         try {
-          setIsRedirecting(true);
-          // User exists and password is correct - sign them in automatically
-          // We already signed them in during checkUserExists, so we just need to redirect
           auth.setSession(checkUserExistsResult.session);
           router.push("/studio");
           return;
@@ -107,12 +107,9 @@ const SignXFormModel = () => {
           email: userEmail,
           password: userPassword,
         });
-        // if (result.success) {
-        //   console.log("sign up successful");
-        //   setConfirmationEmailSent(true);
-        // } else if (result.error) {
-        //   console.log("sign up failed:", result.error);
-        // }
+        if (result.success) {
+          setConfirmationEmailSent(true);
+        }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
@@ -152,9 +149,6 @@ const SignXFormModel = () => {
 
         <form onSubmit={(event) => handleSubmit(event)} className="mt-5">
           {/* default: sign up */}
-          {confirmationEmailSent && (
-            <div>check your email for a confirmation link</div>
-          )}
           <div className="flex flex-col gap-5">
             <input
               type="email"
@@ -183,6 +177,16 @@ const SignXFormModel = () => {
             </button>
           </div>
         </form>
+        {confirmationEmailSent && !enabledSignIn && (
+          <div className="text-center text-green-700">
+            check your email for a confirmation link
+          </div>
+        )}
+        {isEmailNotConfirmed && enabledSignIn && (
+          <div className="text-center text-red-700">
+            email not confirmed - check your email for a confirmation link
+          </div>
+        )}
       </div>
     </div>
   );

@@ -23,6 +23,7 @@ type AuthContextType = {
     success: boolean;
     data?: any;
     session?: Session | null;
+    isEmailNotConfirmed?: boolean;
     error?: string;
   }>;
 };
@@ -101,7 +102,6 @@ export const AuthContextProvider = ({ children }: { children: ReactNode }) => {
       }
       return { success: true, error: undefined };
     } catch (err) {
-      console.error("AuthContext.signOutUser: unexpected error:", err);
       const message = err instanceof Error ? err.message : String(err);
       return { success: false, error: `Sign out failed: ${message}` };
     }
@@ -121,11 +121,11 @@ export const AuthContextProvider = ({ children }: { children: ReactNode }) => {
         password,
       });
       if (error) {
-        console.error(
-          `AuthContext.signInUser: failed to sign in for email ${email}:`,
-          error
-        );
-        return { success: false, error: `Sign in failed: ${error.message}` };
+        return {
+          success: false,
+          error: `Sign in failed: ${error.message}`,
+          isEmailNotConfirmed: error.code === "email_not_confirmed",
+        };
       }
       if (data.session) {
         setSession(data.session);
@@ -133,7 +133,6 @@ export const AuthContextProvider = ({ children }: { children: ReactNode }) => {
 
       return { success: true, data: data, session: data.session };
     } catch (err) {
-      console.error("AuthContext.signInUser: unexpected error:", err);
       const message = err instanceof Error ? err.message : String(err);
       return { success: false, error: `Sign in failed: ${message}` };
     }
