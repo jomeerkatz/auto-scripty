@@ -36,7 +36,7 @@ export default function Studio() {
 
   return (
     <div>
-      <div className="bg-red-500">
+      <div className="">
         <div className="flex justify-end p-4" onClick={handleSignOut}>
           <p className="underline cursor-pointer border-1 p-2">sign out</p>
         </div>

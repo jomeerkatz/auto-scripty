@@ -11,6 +11,7 @@ const SignXFormModel = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirmationEmailSent, setConfirmationEmailSent] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const auth = UserAuth();
   const router = useRouter();
   if (!auth) {
@@ -20,7 +21,7 @@ const SignXFormModel = () => {
       </div>
     );
   }
-  const { signInUser, signUpNewUser } = auth;
+  const { signInUser, signUpNewUser, session } = auth;
 
   // check if user exists by signing in with the email and password
   const checkUserExists = async ({
@@ -36,8 +37,7 @@ const SignXFormModel = () => {
         password,
       });
       if (data.session) {
-        await supabase.auth.signOut();
-        return { exists: true };
+        return { exists: true, session: data.session };
       }
       return { exists: false };
     } catch (error) {
@@ -51,7 +51,7 @@ const SignXFormModel = () => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
-    setErrorMessage(""); // enableSignIn means sign in mode
+    setErrorMessage("");
 
     if (enabledSignIn) {
       // sign in mode
@@ -84,31 +84,22 @@ const SignXFormModel = () => {
         password: userPassword,
       });
 
-      if (checkUserExistsResult.exists) {
-        console.log(
-          "user exists and password is correct - signing them in automatically"
-        );
-        // User exists and password is correct - sign them in automatically
-        // We already signed them in during checkUserExists, so we just need to redirect
-        // But wait - we signed them out, so we need to sign them in again
-        setLoading(false);
-        setErrorMessage("");
-
-        // Sign them in properly using the auth context
-        const signInResult = await signInUser({
-          email: userEmail,
-          password: userPassword,
-        });
-
-        if (signInResult.success) {
+      // user exists and session is valid - redirect to studio
+      if (checkUserExistsResult.exists && checkUserExistsResult.session) {
+        try {
+          setIsRedirecting(true);
+          // User exists and password is correct - sign them in automatically
+          // We already signed them in during checkUserExists, so we just need to redirect
+          auth.setSession(checkUserExistsResult.session);
           router.push("/studio");
-        } else {
-          setErrorMessage(
-            "Account exists but sign in failed. Please try again."
-          );
-          setEnabledSignIn(true); // Switch to sign-in mode as fallback
+          return;
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          setErrorMessage(`Sign in failed: ${errorMessage}`);
+        } finally {
+          setLoading(false);
         }
-        return;
       }
 
       try {
@@ -116,12 +107,12 @@ const SignXFormModel = () => {
           email: userEmail,
           password: userPassword,
         });
-        if (result.success) {
-          console.log("sign up successful");
-          setConfirmationEmailSent(true);
-        } else if (result.error) {
-          console.log("sign up failed:", result.error);
-        }
+        // if (result.success) {
+        //   console.log("sign up successful");
+        //   setConfirmationEmailSent(true);
+        // } else if (result.error) {
+        //   console.log("sign up failed:", result.error);
+        // }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
@@ -131,8 +122,6 @@ const SignXFormModel = () => {
       }
     }
   };
-
-  console.log("enabledSignIn:", enabledSignIn);
 
   return (
     // Modal backdrop with blur

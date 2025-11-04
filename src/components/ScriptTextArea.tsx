@@ -40,7 +40,7 @@ const ScriptTextArea = () => {
 
   return (
     <>
-      <div className="p-5 text-center bg-green-900 flex flex-col items-center gap-4">
+      <div className="p-5 text-center flex flex-col items-center gap-4">
         <input
           type="text"
           placeholder="title of script"
