@@ -6,12 +6,12 @@ import { supabase } from "@/utils/supabase/client";
 
 /**
  * SignXFormModel Component
- * 
+ *
  * A modal component that handles both user sign-up and sign-in flows.
  * Implements a unified form that switches between sign-up and sign-in modes,
  * with automatic detection of existing users during sign-up to provide a
  * seamless experience.
- * 
+ *
  * Features:
  * - Toggle between sign-up and sign-in modes
  * - Automatic user detection during sign-up (if user exists, auto-signs them in)
@@ -25,10 +25,9 @@ const SignXFormModel = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirmationEmailSent, setConfirmationEmailSent] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
   const auth = UserAuth();
   const router = useRouter();
-  
+
   // Early return if auth context is not available (shouldn't happen in normal flow)
   if (!auth) {
     return (
@@ -40,21 +39,20 @@ const SignXFormModel = () => {
   const { signInUser, signUpNewUser, session } = auth;
 
   // Hide modal if user is already authenticated or redirecting
-  if (session || isRedirecting) {
+  if (session) {
     return null;
   }
-
   /**
    * Checks if a user exists by attempting to sign in with provided credentials.
    * This is used during sign-up flow to detect if the user already has an account.
-   * 
+   *
    * Note: We sign out immediately after checking to avoid creating an unwanted session.
-   * 
+   *
    * @param email - User's email address
    * @param password - User's password
    * @returns Object indicating if user exists and any error encountered
    */
-  const checkUserExists = async ({
+  const signInUserIfExists = async ({
     email,
     password,
   }: {
@@ -62,16 +60,18 @@ const SignXFormModel = () => {
     password: string;
   }) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await signInUser({
         email,
         password,
       });
       if (data.session) {
-        // Sign out immediately since we only wanted to check existence
-        await supabase.auth.signOut();
-        return { exists: true };
+        router.push("/");
+        return { success: true };
       }
-      return { exists: false };
+      return {
+        success: false,
+        error: data.error instanceof Error ? data.error.message : String(error),
+      };
     } catch (error) {
       return {
         exists: false,
@@ -82,96 +82,146 @@ const SignXFormModel = () => {
 
   /**
    * Handles form submission for both sign-in and sign-up flows.
-   * 
+   *
    * Sign-in flow: Directly attempts to authenticate the user.
    * Sign-up flow: First checks if user exists (for UX improvement), then either
    * signs them in automatically if credentials match, or creates a new account.
-   * 
+   *
    * @param event - Form submission event
    */
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
     setErrorMessage("");
-
     if (enabledSignIn) {
-      // Sign-in mode: Direct authentication attempt
-      try {
-        console.log("sign in user");
-        const result = await signInUser({
-          email: userEmail,
-          password: userPassword,
-        });
-        if (result.success) {
-          router.push("/studio");
-        } else {
-          const errorMessage =
-            result.error || "Sign in failed: An unknown error occurred.";
-          setErrorMessage(errorMessage);
-        }
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        setErrorMessage(`Sign in failed: ${errorMessage}`);
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      // Sign-up mode: Check if user exists first, then create account or auto-sign-in
-      console.log("sign up mode");
-      
-      // Check if user already exists with these credentials
-      const checkUserExistsResult = await checkUserExists({
+      // user wants to sign in
+      const signInResult = await signInUserIfExists({
         email: userEmail,
         password: userPassword,
       });
 
-      if (checkUserExistsResult.exists) {
-        // User exists with matching credentials - provide seamless UX by auto-signing in
-        console.log(
-          "user exists and password is correct - signing them in automatically"
-        );
-        setIsRedirecting(true);
-        
-        // Sign them in properly using the auth context (we signed out after checking)
-        const signInResult = await signInUser({
-          email: userEmail,
-          password: userPassword,
-        });
-
-        if (signInResult.success) {
-          setLoading(false);
-          router.push("/studio");
-        } else {
-          setErrorMessage(
-            "Account exists but sign in failed. Please try again."
-          );
-          // Fallback: Switch to sign-in mode so user can try again
-          setEnabledSignIn(true);
-        }
+      if (signInResult.success) {
         return;
+      } else {
+        // something went wrong
+        setErrorMessage(
+          signInResult.error || "Sign in failed: An unknown error occurred."
+        );
       }
-
-      // User doesn't exist - proceed with sign-up
-      try {
-        const result = await signUpNewUser({
-          email: userEmail,
-          password: userPassword,
-        });
-        if (result.success) {
-          console.log("sign up successful");
-          setConfirmationEmailSent(true);
-        } else if (result.error) {
-          console.log("sign up failed:", result.error);
+    } else {
+      // try to sign in user if they exist
+      const signInResult = await signInUserIfExists({
+        email: userEmail,
+        password: userPassword,
+      });
+      console.log("sign in result:", signInResult);
+      if (!signInResult.exists) {
+        // user doesn't exist, so we need to sign them up
+        try {
+          const result = await signUpNewUser({
+            email: userEmail,
+            password: userPassword,
+          });
+          console.log("sign up result:", result);
+          if (result.success) {
+            router.push("/");
+            return;
+          } else if (result.error) {
+            setErrorMessage(
+              result.error || "Sign up failed: An unknown error occurred."
+            );
+            return;
+          }
+        } catch (error) {
+          setErrorMessage(
+            error instanceof Error ? error.message : String(error)
+          );
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        setErrorMessage(`Sign up failed: ${errorMessage}`);
-      } finally {
-        setLoading(false);
+      } else if (signInResult.error) {
+        // something went wrong
+        setErrorMessage(
+          signInResult.error || "Sign in failed: An unknown error occurred."
+        );
       }
     }
+
+    // if (enabledSignIn) {
+    //   // Sign-in mode: Direct authentication attempt
+    //   try {
+    //     console.log("sign in user");
+    //     const result = await signInUser({
+    //       email: userEmail,
+    //       password: userPassword,
+    //     });
+    //     if (result.success) {
+    //       router.push("/studio");
+    //     } else {
+    //       const errorMessage =
+    //         result.error || "Sign in failed: An unknown error occurred.";
+    //       setErrorMessage(errorMessage);
+    //     }
+    //   } catch (error) {
+    //     const errorMessage =
+    //       error instanceof Error ? error.message : String(error);
+    //     setErrorMessage(`Sign in failed: ${errorMessage}`);
+    //   } finally {
+    //     setLoading(false);
+    //   }
+    // } else {
+    //   // Sign-up mode: Check if user exists first, then create account or auto-sign-in
+    //   console.log("sign up mode");
+    //   // Check if user already exists with these credentials
+    //   const checkUserExistsResult = await checkUserExists({
+    //     email: userEmail,
+    //     password: userPassword,
+    //   });
+
+    //   if (checkUserExistsResult.exists) {
+    //     // User exists with matching credentials - provide seamless UX by auto-signing in
+    //     console.log(
+    //       "user exists and password is correct - signing them in automatically"
+    //     );
+
+    //     // Sign them in properly using the auth context (we signed out after checking)
+    //     const signInResult = await signInUser({
+    //       email: userEmail,
+    //       password: userPassword,
+    //     });
+
+    //     if (signInResult.success) {
+    //       setLoading(false);
+    //       router.push("/studio");
+    //     } else {
+    //       setErrorMessage(
+    //         "Account exists but sign in failed. Please try again."
+    //       );
+    //       // Fallback: Switch to sign-in mode so user can try again
+    //       setEnabledSignIn(true);
+    //     }
+    //     return;
+    //   }
+
+    //   // User doesn't exist - proceed with sign-up
+    //   try {
+    //     const result = await signUpNewUser({
+    //       email: userEmail,
+    //       password: userPassword,
+    //     });
+    //     if (result.success) {
+    //       setConfirmationEmailSent(true);
+    //     } else if (result.error) {
+    //       console.log("sign up failed:", result.error);
+    //     }
+    //   } catch (error) {
+    //     const errorMessage =
+    //       error instanceof Error ? error.message : String(error);
+    //     setErrorMessage(`Sign up failed: ${errorMessage}`);
+    //   } finally {
+    //     setLoading(false);
+    //   }
+    // }
   };
 
   console.log("enabledSignIn:", enabledSignIn);
