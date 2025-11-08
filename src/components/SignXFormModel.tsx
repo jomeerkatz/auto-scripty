@@ -115,7 +115,7 @@ const SignXFormModel = () => {
         password: userPassword,
       });
       console.log("sign in result:", signInResult);
-      if (!signInResult.exists) {
+      if (!signInResult.success) {
         // user doesn't exist, so we need to sign them up
         try {
           const result = await signUpNewUser({
